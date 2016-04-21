@@ -108,7 +108,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     def setup_text_entry(self):
         """Setup the text entry field."""
         self.text_box = eztext.Input(
-            x=375,
+            x=360,
             y=300,
             maxlength=16,
             color=(255, 0, 0),
