@@ -9,10 +9,12 @@ http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.htm
 
 """
 
+import json
+from random import choice
 import pygame
 # pylint: disable=no-name-in-module
 from pygame.locals import QUIT, KEYDOWN, K_RETURN
-import eztext
+from eztext import Input
 from green import GreenCode, WHITE, OFF
 
 
@@ -73,17 +75,22 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.text_box = None
         self.background = None
         self.clock = None
+        self.levels = None
         self.info = {}
         self.frame_count = 0
         self.frame_rate = 60
+        self._current_target = 'e'
         self.leds = []
         self.key = []
         self.gcode = GreenCode(hat=None)
         self.setup()
+        self.current_target = 'e'
         self.run_game()
 
     def setup(self):
         """Setup pygame and call other setup commands."""
+        with open('levels.json') as level_buf:
+            self.levels = json.load(level_buf)
         self.setup_info()
         pygame.init()  # pylint: disable=no-member
         pygame.font.init()
@@ -97,20 +104,26 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.clock = pygame.time.Clock()
         self.setup_leds()
         self.setup_key()
+        self.update_key()
 
     def setup_info(self):
         """Setup the player info dictionary with initial data."""
         self.info = {
-            "level": 1,
+            "level": 0,
             "last_wpm": 10,
             "average_wpm": 10,
             "accuracy": 90,
-            "key_char": 'e'
+            "key_char": 'e',
         }
+
+    def get_new_target(self):
+        """Get a new word for the user to type."""
+        self.frame_count = 0
+        self.current_target = choice(self.levels[self.info['level']])
 
     def setup_text_entry(self):
         """Setup the text entry field."""
-        self.text_box = eztext.Input(
+        self.text_box = Input(
             x=360,
             y=300,
             maxlength=16,
@@ -126,10 +139,29 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
                           pos=(rank, row))
                 self.leds.append(led)
 
-    def update_leds(self, message):
+    @property
+    def current_target(self):
+        """I'm the 'current_target' property."""
+        return self._current_target
+
+    @current_target.setter
+    def current_target(self, value):
+        self._current_target = value
+        self.update_leds()
+
+    @current_target.deleter
+    def current_target(self):
+        del self._current_target
+
+    def update_leds(self):
         """Set the LED colours."""
-        grids = self.gcode.parse_message(message)
+        # Reset first
+        for led in self.leds:
+            led.lit = False
+        # Get the message
+        grids = self.gcode.parse_message(self._current_target)
         grid = grids[0]
+        # Display the message
         for led in self.leds:
             rotated = (led.pos[1] * 8) + led.pos[0]
             if grid[rotated] == OFF:
@@ -155,8 +187,6 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
     def run_game(self):
         """The main game loop."""
-        self.update_key()
-        self.update_leds("e")
         while self.finished == 0:
             events = pygame.event.get()
             for event in events:
@@ -268,6 +298,13 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     def mark_user_translation(self):
         """Update the user's guess."""
         print("return")
+        if self.current_target == self.text_box.value:
+            # Win
+            self.text_box.value = ""
+            self.get_new_target()
+        else:
+            # Somehow notify an incorrect guess
+            pass
 
 
 def main():
