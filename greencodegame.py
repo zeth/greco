@@ -12,9 +12,9 @@ http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.htm
 import pygame
 from pygame.locals import QUIT  # pylint: disable=no-name-in-module
 import eztext
+from green import GreenCode, WHITE, OFF
 
-WHITE = (255, 255, 255)
-
+LETTERS = "etaoinshrdlcumwfgypbvkjxqz"
 
 class LED(object):
     """A virtual LED, shown using pygame."""
@@ -75,7 +75,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.frame_rate = 60
         self.leds = []
         self.key = []
-
+        self.gcode = GreenCode(hat=None)
         self.setup()
         self.run_game()
 
@@ -123,6 +123,16 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
                           pos=(rank, row))
                 self.leds.append(led)
 
+    def update_leds(self, message):
+        """Set the LED colours."""
+        grids = self.gcode.parse_message(message)
+        grid = grids[0]
+        for index, led in enumerate(self.leds):
+            if grid[index] == OFF:
+                led.lit = False
+            else:
+                led.clicked(grid[index])
+
     def setup_key(self):
         """Setup the helpful key."""
         for row in range(0, 4):
@@ -130,8 +140,19 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
                       pos=(14, row))
             self.key.append(led)
 
+    def update_key(self):
+        """Update the helpful key."""
+        grid = self.gcode.parse_character(self.info["key_char"])
+        for index, led in enumerate(self.key):
+            if grid[index] == OFF:
+                led.lit = False
+            else:
+                led.clicked(grid[index])
+
     def run_game(self):
         """The main game loop."""
+        self.update_key()
+        self.update_leds("Hello")
         while self.finished == 0:
             events = pygame.event.get()
             for event in events:

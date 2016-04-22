@@ -9,6 +9,10 @@ Except for the following missing chars:  ¢¥¤§¦©¨«ª­¬¯®±°³²µ´
 from itertools import permutations
 from string import ascii_lowercase, digits
 
+# See if Raspberry Pi Sense Hat Library is available
+# Obviously won't be if it is an Intel or whatever
+# Should consider supporting Unicode HAT and pHAT etc later
+# P.S. will happily accept contributions of LED HATs :)
 try:
     from sense_hat import SenseHat
 except ImportError:
@@ -183,24 +187,44 @@ class GreenCode(object):
         self.characters.update(SYMBOLS)
         self.characters.update(EUROPEAN)
         self.colours = dict(COLOURS)
+
+        # Only Sense HAT is actually supported so far
+        # I haven't got around to buying the others yet.
         if hat == 'sense' and SENSE_HAT_LIB:
             self.hat_type = 'sense'
             self.hat = SenseHat()
+            self.width = 8
+            self.height = 8
+        elif hat == 'unicornphat':
+            self.hat_type = 'unicorn'
+            self.width = 8
+            self.height = 4
+        elif hat == 'unicornhat':
+            self.hat_type = 'unicorn'
+            self.width = 8
+            self.height = 8
         else:
             self.hat_type = None
+            self.height = 8
+            self.width = 8
         self.blankpart = [OFF for i in range(0, 32)]
 
     def show_message(self, message):
         """Show a message on the relevant LED grid."""
-        screens = self.split_message(message.lower())
-        grids = [self.convert_screen_to_matrix(screen) for screen in screens]
+        grids = self.parse_message(message)
         if self.hat_type == 'sense':
             for grid in grids:
-                # Support the joystick later
                 self.hat.set_pixels(grid)
+                # Support the joystick later
                 input()
 
-    def split_message(self, message):
+    def parse_message(self, message):
+        """Parse a message into grid matrixes."""
+        screens = self._split_message(message.lower())
+        grids = [self._convert_screen_to_matrix(screen) for screen in screens]
+        return grids
+
+    def _split_message(self, message):
         """Split a message into screen sized amounts."""
         screens = []
         last_screen_length = 0
@@ -233,7 +257,7 @@ class GreenCode(object):
                 screens.append(chunks)
         return screens
 
-    def convert_screen_to_matrix(self, screen):
+    def _convert_screen_to_matrix(self, screen):
         """Convert screen of text to matrix that the HAT
         library understands."""
         grid = []
@@ -253,6 +277,9 @@ class GreenCode(object):
             grid.extend(self.blankpart)
         return grid
 
+    def parse_character(self, character):
+        """Parse a single character."""
+        return [self.colours[symbol] for symbol in self.characters[character]]
 
 def example():
     """A simple example."""
