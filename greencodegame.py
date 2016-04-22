@@ -10,11 +10,14 @@ http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.htm
 """
 
 import pygame
-from pygame.locals import QUIT  # pylint: disable=no-name-in-module
+# pylint: disable=no-name-in-module
+from pygame.locals import QUIT, KEYDOWN, K_RETURN
 import eztext
 from green import GreenCode, WHITE, OFF
 
+
 LETTERS = "etaoinshrdlcumwfgypbvkjxqz"
+
 
 class LED(object):
     """A virtual LED, shown using pygame."""
@@ -127,11 +130,12 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         """Set the LED colours."""
         grids = self.gcode.parse_message(message)
         grid = grids[0]
-        for index, led in enumerate(self.leds):
-            if grid[index] == OFF:
+        for led in self.leds:
+            rotated = (led.pos[1] * 8) + led.pos[0]
+            if grid[rotated] == OFF:
                 led.lit = False
             else:
-                led.clicked(grid[index])
+                led.clicked(grid[rotated])
 
     def setup_key(self):
         """Setup the helpful key."""
@@ -152,13 +156,17 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     def run_game(self):
         """The main game loop."""
         self.update_key()
-        self.update_leds("Hello")
+        self.update_leds("e")
         while self.finished == 0:
             events = pygame.event.get()
             for event in events:
                 if event.type == QUIT:
                     self.finished = 1
                     pygame.quit()  # pylint: disable=no-member
+
+                if event.type == KEYDOWN:
+                    if event.key == K_RETURN:
+                        self.mark_user_translation()
 
             self.text_box.update(events)
 
@@ -256,6 +264,10 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.draw_text_box()
         self.draw_clock()
         pygame.display.flip()
+
+    def mark_user_translation(self):
+        """Update the user's guess."""
+        print("return")
 
 
 def main():
