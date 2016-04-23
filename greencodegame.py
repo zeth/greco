@@ -3,11 +3,13 @@
 By Zeth, 2016
 
 Many thanks to Richard Hayler.
-The LED, graphics, etc are based on 8x8GridDraw
+The LED class, graphics, etc are based on 8x8GridDraw
 https://github.com/topshed/RPi_8x8GridDraw
 http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.html
 
 """
+
+STARTING_LEVEL = 0
 
 import json
 import difflib
@@ -113,7 +115,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         """Setup the player info dictionary with initial data."""
         self.info = {
             "wpm": [1],
-            "level": 0,
+            "level": STARTING_LEVEL,
             "average_wpm": 10,
             "accuracy": [90],
             "key_char": 'e',
