@@ -10,7 +10,8 @@ http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.htm
 """
 
 import json
-from random import choice
+import difflib
+from random import choice, randint
 import pygame
 # pylint: disable=no-name-in-module
 from pygame.locals import QUIT, KEYDOWN, K_RETURN
@@ -18,7 +19,7 @@ from eztext import Input
 from green import GreenCode, WHITE, OFF
 
 
-LETTERS = "etaoinshrdlcumwfgypbvkjxqz"
+LETTERS = "etaoinshrdlcumwfgypbvkj0123456789etaoinshrdlcumwfgypbvkjxqz"
 
 
 class LED(object):
@@ -89,8 +90,10 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
     def setup(self):
         """Setup pygame and call other setup commands."""
-        with open('levels.json') as level_buf:
+        with open('levels1.json') as level_buf:
             self.levels = json.load(level_buf)
+        with open('levels2.json') as level_buf:
+            self.levels.extend(json.load(level_buf))
         self.setup_info()
         pygame.init()  # pylint: disable=no-member
         pygame.font.init()
@@ -109,17 +112,26 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     def setup_info(self):
         """Setup the player info dictionary with initial data."""
         self.info = {
+            "wpm": [1],
             "level": 0,
-            "last_wpm": 10,
             "average_wpm": 10,
-            "accuracy": 90,
+            "accuracy": [90],
             "key_char": 'e',
         }
 
     def get_new_target(self):
         """Get a new word for the user to type."""
         self.frame_count = 0
-        self.current_target = choice(self.levels[self.info['level']])
+        if self.info['level'] < 59:
+            level = self.info['level']
+            self.current_target = choice(self.levels[level])
+            # At lower levels, reroll if length is greater than 8
+            while len(self.current_target) > 8:
+                self.current_target = choice(self.levels[level])
+            self.current_target = choice(self.levels[level])
+        else:
+            level = randint(0, 25)
+            self.current_target = choice(self.levels[level])
 
     def setup_text_entry(self):
         """Setup the text entry field."""
@@ -138,6 +150,15 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
                 led = LED(radius=20,
                           pos=(rank, row))
                 self.leds.append(led)
+
+    def play_sound(self):
+        """Play the level change silly noise."""
+        level = self.info['level']
+
+        filename = "sounds/" + str(level).zfill(2) + ".ogg"
+
+        pygame.mixer.music.load(filename)
+        pygame.mixer.music.play()
 
     @property
     def current_target(self):
@@ -184,6 +205,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
                 led.lit = False
             else:
                 led.clicked(grid[index])
+                led.lit = True
 
     def run_game(self):
         """The main game loop."""
@@ -216,27 +238,29 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
         # Last Words per minute
         text = small_font.render('Last WPM:', 1, WHITE)
-        self.screen.blit(text, (400, 15))
+        self.screen.blit(text, (370, 15))
 
         # Last words per minute number
-        text = key_font.render(str(self.info['last_wpm']), 1, WHITE)
-        self.screen.blit(text, (400, 30))
+        text = key_font.render(str(self.info['wpm'][-1]), 1, WHITE)
+        self.screen.blit(text, (370, 30))
 
         # Average Words per minute
         text = small_font.render('Average WPM:', 1, WHITE)
         self.screen.blit(text, (520, 15))
 
         # Average words per minute number
-        text = key_font.render(str(self.info['average_wpm']), 1, WHITE)
+        text = key_font.render(str(round(sum(
+            self.info['wpm']) / len(self.info['wpm']))), 1, WHITE)
         self.screen.blit(text, (525, 30))
 
         # Accuracy
         text = small_font.render('Accuracy:', 1, WHITE)
-        self.screen.blit(text, (400, 100))
+        self.screen.blit(text, (370, 100))
 
         # Accuracy percentage
-        text = key_font.render(str(self.info['accuracy']) + '%', 1, WHITE)
-        self.screen.blit(text, (400, 115))
+        text = key_font.render(str(
+            self._get_average_accuracy()) + '%', 1, WHITE)
+        self.screen.blit(text, (370, 115))
 
         # Last character title
         text = small_font.render('Last char added:', 1, WHITE)
@@ -248,11 +272,20 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
         # Time
         text = small_font.render('Time:', 1, WHITE)
-        self.screen.blit(text, (400, 185))
+        self.screen.blit(text, (370, 185))
 
     def draw_text_box(self):
         """Draw the text input box."""
         self.text_box.draw(self.screen)
+
+    def _get_seconds(self):
+        return
+
+    def _set_words_per_minute(self, words=1):
+        """Update words per minute."""
+        seconds = self.frame_count / self.frame_rate
+        wpm = round((60 / seconds) * words)
+        self.info['wpm'].append(wpm)
 
     def draw_clock(self):
         """Draw how much time the current reading has taken."""
@@ -270,7 +303,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         # Blit to the screen
         font = pygame.font.Font(None, 100)
         text = font.render(output_string, True, WHITE)
-        self.screen.blit(text, [400, 200])
+        self.screen.blit(text, [370, 200])
         self.frame_count += 1
         self.clock.tick(self.frame_rate)
 
@@ -295,16 +328,41 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.draw_clock()
         pygame.display.flip()
 
+    def _get_average_accuracy(self):
+        """Get the accuracy from the last ten guesses."""
+        if len(self.info['accuracy']) < 10:
+            length = len(self.info['accuracy'])
+        else:
+            length = 10
+
+        return round(sum(self.info['accuracy'][-10:]) / length)
+
+    def _upgrade_level(self):
+        self.info['accuracy'] = [self._get_average_accuracy()]
+        self.info['level'] += 1
+        if self.info['level'] < 59:
+            self.info["key_char"] = LETTERS[self.info['level']]
+
+        self.update_key()
+        self.draw_key()
+        pygame.display.flip()
+        self.play_sound()
+
     def mark_user_translation(self):
         """Update the user's guess."""
-        print("return")
         if self.current_target == self.text_box.value:
-            # Win
-            self.text_box.value = ""
-            self.get_new_target()
+            self.info['accuracy'].append(100)
         else:
-            # Somehow notify an incorrect guess
-            pass
+            self.info['accuracy'].append(
+                round(difflib.SequenceMatcher(
+                    a='e', b='house').ratio() * 100))
+
+        self.text_box.value = ""
+        self._set_words_per_minute()
+        if len(self.info['accuracy']) > 10 \
+           and self._get_average_accuracy() > 89:
+            self._upgrade_level()
+        self.get_new_target()
 
 
 def main():
