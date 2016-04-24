@@ -9,17 +9,19 @@ http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.htm
 
 """
 
-STARTING_LEVEL = 0
-
 import json
 import difflib
 from random import choice, randint
 import pygame
-# pylint: disable=no-name-in-module
-from pygame.locals import QUIT, KEYDOWN, K_RETURN
+# pylint: disable=no-member,no-name-in-module
+from pygame.locals import (QUIT, KEYDOWN, K_RETURN, K_PAUSE,
+                           K_HELP, K_INSERT, K_ESCAPE)
 from eztext import Input
 from green import GreenCode, WHITE, OFF
 
+STARTING_LEVEL = 26
+
+PAUSE_BUTTONS = (K_PAUSE, K_HELP, K_INSERT, K_ESCAPE)
 
 LETTERS = "etaoinshrdlcumwfgypbvkj0123456789etaoinshrdlcumwfgypbvkjxqz"
 
@@ -75,6 +77,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     """The main game class."""
     def __init__(self):
         self.finished = 0
+        self.paused = False
         self.text_box = None
         self.background = None
         self.clock = None
@@ -120,6 +123,49 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
             "accuracy": [90],
             "key_char": 'e',
         }
+
+    def pause(self):
+        """Pause the game for a tea break."""
+        self.paused = True
+        self.screen.fill(OFF)
+        key_font = pygame.font.Font(None, 100)
+        text = key_font.render("Paused", 1, WHITE)
+        self.screen.blit(text, (400, 250))
+
+        teapot = pygame.image.load("dotty-tea-pot.png")
+        self.screen.blit(teapot, (400, 50))
+
+        leds = []
+        for rank in range(0, 8):
+            for row in range(0, 8):
+                led = LED(radius=20,
+                          pos=(rank, row))
+                leds.append(led)
+
+        self.update_leds(message="paused",
+                         leds=leds)
+
+        for led in leds:
+            led.draw()
+
+        while self.paused:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.finished = 1
+                    pygame.quit()  # pylint: disable=no-member
+
+                if event.type == KEYDOWN:
+                    if event.key == K_RETURN:
+                        self.unpause()
+                    if event.key in PAUSE_BUTTONS:
+                        self.unpause()
+
+            pygame.display.update()
+            self.clock.tick(15)
+
+    def unpause(self):
+        """Make the fun continue!"""
+        self.paused = False
 
     def get_new_target(self):
         """Get a new word for the user to type."""
@@ -176,16 +222,22 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     def current_target(self):
         del self._current_target
 
-    def update_leds(self):
+    def update_leds(self,
+                    message=None,
+                    leds=None):
         """Set the LED colours."""
+        if not message:
+            message = self._current_target
+        if not leds:
+            leds = self.leds
         # Reset first
-        for led in self.leds:
+        for led in leds:
             led.lit = False
         # Get the message
-        grids = self.gcode.parse_message(self._current_target)
+        grids = self.gcode.parse_message(message)
         grid = grids[0]
         # Display the message
-        for led in self.leds:
+        for led in leds:
             rotated = (led.pos[1] * 8) + led.pos[0]
             if grid[rotated] == OFF:
                 led.lit = False
@@ -221,6 +273,8 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
                 if event.type == KEYDOWN:
                     if event.key == K_RETURN:
                         self.mark_user_translation()
+                    if event.key in PAUSE_BUTTONS:
+                        self.pause()
 
             self.text_box.update(events)
 
