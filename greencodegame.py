@@ -2,11 +2,11 @@
 """Green code reading game.
 By Zeth, 2016
 
-Many thanks to Richard Hayler.
-The LED class, graphics, etc are based on 8x8GridDraw
-https://github.com/topshed/RPi_8x8GridDraw
-http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.html
-
+Using Pygame ScreenHAT implementation by Richard Hayler.
+    Many thanks to Richard.
+    This LED class, graphics, etc are based on 8x8GridDraw
+    https://github.com/topshed/RPi_8x8GridDraw
+    http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.html
 """
 
 import json
@@ -25,9 +25,13 @@ PAUSE_BUTTONS = (K_PAUSE, K_HELP, K_INSERT, K_ESCAPE)
 
 LETTERS = "etaoinshrdlcumwfgypbvkj0123456789etaoinshrdlcumwfgypbvkjxqz"
 
+TITLE = 'Green Code Learning Game'
+
 
 class LED(object):
-    """A virtual LED, shown using pygame."""
+    """A virtual LED, shown using Pygame.
+    By Richard Hayler, see note in module docstring above.
+    """
     def __init__(self, pos=(0, 0), radius=25, lit=False):
         # Initializes the LED
         self.pos = pos
@@ -95,6 +99,8 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
     def run_game(self):
         """The main game loop."""
+        self._welcome()
+
         while self.finished == 0:
             events = pygame.event.get()
             for event in events:
@@ -108,7 +114,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
                         self._pause()
 
             self.text_box.update(events)
-            self.update_display()
+            self._update_display()
 
     def _setup(self):
         """Setup pygame and call other setup commands."""
@@ -120,7 +126,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         pygame.init()  # pylint: disable=no-member
         pygame.font.init()
         self._setup_fonts()
-        pygame.display.set_caption('Green Code Reading Test')
+        pygame.display.set_caption(TITLE)
         self.screen = pygame.display.set_mode((700, 395), 0, 32)
         # pylint: disable=too-many-function-args
         background = pygame.Surface(self.screen.get_size())
@@ -129,8 +135,8 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self._setup_text_entry()
         self.clock = pygame.time.Clock()
         self._setup_leds()
-        self.setup_key()
-        self.update_key()
+        self._setup_key()
+        self._update_key()
 
     def _setup_info(self):
         """Setup the player info dictionary with initial data."""
@@ -149,6 +155,75 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
             "medium": pygame.font.Font(None, 50),
             "key": pygame.font.Font(None, 100)
         }
+
+    # pylint: disable=too-many-arguments
+    def _write_text(self,
+                    text,
+                    x_pos,
+                    y_pos,
+                    font="small",
+                    colour=WHITE):
+        """Friendly method to write text such as headings, scores etc."""
+        font = self.fonts[font]
+        text_surface = font.render(text, 1, colour)
+        self.screen.blit(text_surface, (x_pos, y_pos))
+
+    def _welcome(self):
+        """Welcome screen."""
+        self.paused = True
+        self.screen.fill(OFF)
+        self._draw_top_headings()
+        leds = []
+        self._setup_leds(leds)
+        self._update_leds(message="welcome friend",
+                          leds=leds)
+        self._draw_leds(leds)
+
+        self._write_text(
+            'Welcome',
+            370, 10, "key")
+        self._write_text(
+            "Learn green code in a friendly way!",
+            400, 75)
+        self._write_text(
+            "How To Play",
+            370, 95, "medium")
+        self._write_text(
+            "Read the green code and type it in.",
+            370, 135)
+        self._write_text(
+            "Use the Backspace key to delete typos.",
+            370, 155)
+        self._write_text(
+            "Return key to submit your guess.",
+            370, 175)
+        self._write_text(
+            "ESC key to pause the game.",
+            370, 195)
+        self._write_text(
+            "Consistently accurate typing will result in gaining",
+            370, 215)
+        self._write_text(
+            "a level and being rewarded with a silly catchphrase.",
+            370, 235)
+        self._write_text(
+            "Each level will focus on a different character,",
+            370, 255)
+        self._write_text(
+            "which is shown by a helpful key on the far right.",
+            370, 275)
+        self._write_text(
+            "Green code is a whimsical language so start slowly,",
+            370, 310)
+        self._write_text(
+            "don't take it seriously and don't forget to have fun!",
+            370, 330)
+        self._write_text(
+            "Press Return to join the RGB LED Revolution!",
+            370, 360)
+        self._do_pause()
+        self.screen.fill(OFF)
+        self._update_leds()
 
     def _wrong(self, guess):
         """Show the correct answer."""
@@ -200,8 +275,9 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
         leds = []
         self._setup_leds(leds)
-        self.update_leds(message="paused",
-                         leds=leds)
+        self._update_leds(
+            message="paused",
+            leds=leds)
         self._draw_leds(leds)
         self._do_pause()
 
@@ -277,15 +353,15 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     @current_target.setter
     def current_target(self, value):
         self._current_target = value
-        self.update_leds()
+        self._update_leds()
 
     @current_target.deleter
     def current_target(self):
         del self._current_target
 
-    def update_leds(self,
-                    message=None,
-                    leds=None):
+    def _update_leds(self,
+                     message=None,
+                     leds=None):
         """Set the LED colours."""
         if not message:
             message = self._current_target
@@ -305,14 +381,14 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
             else:
                 led.clicked(grid[rotated])
 
-    def setup_key(self):
+    def _setup_key(self):
         """Setup the helpful key."""
         for row in range(0, 4):
             led = LED(radius=20,
                       pos=(14, row))
             self.key.append(led)
 
-    def update_key(self):
+    def _update_key(self):
         """Update the helpful key."""
         grid = self.gcode.parse_character(self.info["key_char"])
         for index, led in enumerate(self.key):
@@ -327,7 +403,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         small_font = self.fonts["small"]
 
         # Title
-        text = small_font.render('Green Code Reading Test', 1, WHITE)
+        text = small_font.render(TITLE, 1, WHITE)
         self.screen.blit(text, (150, 15))
 
         # Level
@@ -419,7 +495,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         for led in self.key:
             led.draw()
 
-    def update_display(self):
+    def _update_display(self):
         """Update the display while the game is running."""
         self.screen.blit(self.background, (0, 0))
         # draw the leds
@@ -446,7 +522,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         if self.info['level'] < 59:
             self.info["key_char"] = LETTERS[self.info['level']]
 
-        self.update_key()
+        self._update_key()
         self._draw_key()
         pygame.display.flip()
         self._play_sound()
