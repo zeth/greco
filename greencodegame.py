@@ -19,7 +19,7 @@ from pygame.locals import (QUIT, KEYDOWN, K_RETURN, K_PAUSE,
 from eztext import Input
 from green import GreenCode, WHITE, OFF
 
-STARTING_LEVEL = 26
+STARTING_LEVEL = 0
 
 PAUSE_BUTTONS = (K_PAUSE, K_HELP, K_INSERT, K_ESCAPE)
 
