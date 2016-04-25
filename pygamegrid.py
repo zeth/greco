@@ -35,6 +35,7 @@ class LEDGrid(object):
 
     TODO: make the basic screen size flexible.
     """
+    # pylint: disable=too-many-instance-attributes
     def __init__(self,
                  black_is_colour=False,
                  screen=None,
@@ -43,7 +44,7 @@ class LEDGrid(object):
         self._title = title or "LED Grid"
         self._rotation = 0
         self._leds = []  # The LED matrix
-        self.__leds = [] # The LED matrix2
+        self._pixels = [] # The list of pixels
         self._basic = False
         self._background = None
         self._screen = screen
@@ -68,11 +69,9 @@ class LEDGrid(object):
         downwards
         """
         if rotation in (0, 90, 180, 270):
-            if redraw:
-                pixel_list = self.get_pixels()
             self._rotation = rotation
             if redraw:
-                self.set_pixels(pixel_list)
+                self.set_pixels(self._pixels)
         else:
             raise ValueError('Rotation must be 0, 90, 180 or 270 degrees')
 
@@ -127,6 +126,8 @@ class LEDGrid(object):
                         'Pixel at index %d is invalid. '
                         'Pixel elements must be between 0 and 255' % index)
 
+        self._pixels = pixel_list
+
         for index, pix in enumerate(pixel_list):
             rot_index = self._rotate(index)
             self._leds[rot_index].colour = pix
@@ -157,7 +158,7 @@ class LEDGrid(object):
         Returns a list containing 64 smaller lists of [R,G,B] pixels
         representing what is currently displayed on the LED matrix
         """
-        return [led.colour for led in self._leds]
+        return self._pixels
 
     def set_pixel(self, x_pos, y_pos, *args):
         """Updates the single [R,G,B] pixel specified by x_pos and y_pos on
