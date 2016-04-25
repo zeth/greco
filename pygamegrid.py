@@ -1,4 +1,10 @@
+#!/usr/bin/python3
 """Virtual 8x8 LED grid implemented in pygame."""
+
+# Compatibility for old souls using Python 2 in their
+# zeppelins and chariots etc
+from __future__ import division
+
 
 import os
 
@@ -35,7 +41,7 @@ class LEDGrid(object):
                  title=None):
         self._black_is_colour = black_is_colour
         self._title = title or "LED Grid"
-        self._rotation = 0
+        self._rotation = 180
         self._leds = []  # The LED matrix
         self._basic = False
         self._background = None
@@ -123,18 +129,36 @@ class LEDGrid(object):
                         'Pixel elements must be between 0 and 255' % index)
 
         for index, pix in enumerate(pixel_list):
-            self._leds[index].colour = pix
+            rot_index = self._rotate(index)
+            self._leds[rot_index].colour = pix
 
         if self._basic:
             self._draw_basic_screen()
+
+    def _rotate(self, index):
+        """Rotate the data to the right direction.  Even seemingly un-rotated
+        0 rotation needs work because what the SenseHAT's
+        micro-controller expects is not what we (and pygame) expect.
+        """
+        led = self._leds[index]
+        if self.rotation == 0:
+            return (led.pos[1] * 8) + led.pos[0]
+        elif self.rotation == 90:
+            return ((7 - led.pos[0]) * 8) + led.pos[1]
+        elif self.rotation == 180:
+            return ((7 - led.pos[1]) * 8 +
+                    (7 - led.pos[0]))
+        elif self.rotation == 270:
+            return (led.pos[0] * 8) + (7 - led.pos[1])
+        else:
+            raise ValueError('Rotation must be 0, 90, 180 or 270 degrees')
 
     def get_pixels(self):
         """
         Returns a list containing 64 smaller lists of [R,G,B] pixels
         representing what is currently displayed on the LED matrix
         """
-        if not self._rotation:
-            return [led.colour for led in self._leds]
+        return [led.colour for led in self._leds]
 
     def set_pixel(self, x_pos, y_pos, *args):
         """Updates the single [R,G,B] pixel specified by x_pos and y_pos on
@@ -167,9 +191,8 @@ class LEDGrid(object):
             if element > 255 or element < 0:
                 raise ValueError('Pixel elements must be between 0 and 255')
 
-        if not self._rotation:
-            led = self._get_led(x_pos, y_pos)
-            led.colour = pixel
+        led = self._get_led(x_pos, y_pos)
+        led.colour = pixel
 
         if self._basic:
             self._draw_basic_screen()
@@ -186,8 +209,7 @@ class LEDGrid(object):
         if y_pos > 7 or y_pos < 0:
             raise ValueError('Y position must be between 0 and 7')
 
-        if not self._rotation:
-            return self._get_led(x_pos, y_pos).colour
+        return self._get_led(x_pos, y_pos).colour
 
     def load_image(self, file_path, redraw=True):
         """
@@ -363,7 +385,15 @@ BLACK = OFF = (0, 0, 0)
 
 def main():
     """Simple example."""
-    LEDGrid()
+    grid = LEDGrid()
+    grid.set_pixels((BLUE, BLUE, BLUE, BLUE, RED, OFF, OFF, OFF,
+                     BLUE, OFF, RED, RED, RED, OFF, OFF, OFF,
+                     BLUE, OFF, BLUE, BLUE, RED, OFF, OFF, OFF,
+                     BLUE, OFF, BLUE, BLUE, OFF, OFF, OFF, OFF,
+                     BLUE, RED, BLUE, BLUE, RED, OFF, OFF, OFF,
+                     RED, RED, RED, RED, BLUE, OFF, OFF, OFF,
+                     RED, RED, BLUE, BLUE, BLUE, OFF, OFF, OFF,
+                     OFF, OFF, OFF, BLUE, OFF, OFF, OFF, OFF))
     input()
 
 if __name__ == '__main__':
