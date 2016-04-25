@@ -44,7 +44,7 @@ class LEDGrid(object):
         self._title = title or "LED Grid"
         self._rotation = 0
         self._leds = []  # The LED matrix
-        self._pixels = [] # The list of pixels
+        self._pixels = []  # The list of pixels
         self._basic = False
         self._background = None
         self._screen = screen
@@ -209,7 +209,7 @@ class LEDGrid(object):
         if y_pos > 7 or y_pos < 0:
             raise ValueError('Y position must be between 0 and 7')
 
-        return self._get_led(x_pos, y_pos).colour
+        return self._get_pixel(x_pos, y_pos)
 
     def load_image(self, file_path, redraw=True):
         """
@@ -295,6 +295,10 @@ class LEDGrid(object):
     def _get_led(self, x_pos, y_pos):
         """Get an LED from a particular coordinate."""
         return self._leds[y_pos * 8 + x_pos]
+
+    def _get_pixel(self, x_pos, y_pos):
+        """Get a Pixel from a particular coordinate."""
+        return self._pixels[y_pos * 8 + x_pos]
 
 
 class LED(object):
@@ -391,6 +395,7 @@ EXAMPLE = (BLUE, BLUE, BLUE, BLUE, RED, OFF, OFF, OFF,
            RED, RED, RED, RED, BLUE, OFF, OFF, OFF,
            RED, RED, BLUE, BLUE, BLUE, OFF, OFF, OFF,
            OFF, OFF, OFF, BLUE, OFF, OFF, OFF, OFF)
+
 
 def main():
     """Simple example."""
