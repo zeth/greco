@@ -7,6 +7,8 @@ Using Pygame ScreenHAT implementation by Richard Hayler.
     This LED class, graphics, etc are based on 8x8GridDraw
     https://github.com/topshed/RPi_8x8GridDraw
     http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.html
+
+TODO: use new simple text method everywhere.
 """
 
 import json

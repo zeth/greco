@@ -41,8 +41,9 @@ class LEDGrid(object):
                  title=None):
         self._black_is_colour = black_is_colour
         self._title = title or "LED Grid"
-        self._rotation = 180
+        self._rotation = 0
         self._leds = []  # The LED matrix
+        self.__leds = [] # The LED matrix2
         self._basic = False
         self._background = None
         self._screen = screen
@@ -65,10 +66,8 @@ class LEDGrid(object):
         """Sets the LED matrix rotation for viewing, adjust if the Pi is
         upside down or sideways. 0 is with the Pi HDMI port facing
         downwards
-
         """
-
-        if rotation in self._pix_map.keys():
+        if rotation in (0, 90, 180, 270):
             if redraw:
                 pixel_list = self.get_pixels()
             self._rotation = rotation
@@ -301,7 +300,7 @@ class LED(object):
     """A single virtual LED, shown using Pygame.
     By Richard Hayler, see note in module docstring above.
     """
-    # pylint: disable=too-many-arguments, too many instance attributes
+    # pylint: disable=too-many-arguments, too-many-instance-attributes
     def __init__(self,
                  pos=(0, 0),
                  radius=25,
@@ -383,17 +382,19 @@ CYAN = (0, 255, 255)
 BLACK = OFF = (0, 0, 0)
 
 
+EXAMPLE = (BLUE, BLUE, BLUE, BLUE, RED, OFF, OFF, OFF,
+           BLUE, OFF, RED, RED, RED, OFF, OFF, OFF,
+           BLUE, OFF, BLUE, BLUE, RED, OFF, OFF, OFF,
+           BLUE, OFF, BLUE, BLUE, OFF, OFF, OFF, OFF,
+           BLUE, RED, BLUE, BLUE, RED, OFF, OFF, OFF,
+           RED, RED, RED, RED, BLUE, OFF, OFF, OFF,
+           RED, RED, BLUE, BLUE, BLUE, OFF, OFF, OFF,
+           OFF, OFF, OFF, BLUE, OFF, OFF, OFF, OFF)
+
 def main():
     """Simple example."""
     grid = LEDGrid()
-    grid.set_pixels((BLUE, BLUE, BLUE, BLUE, RED, OFF, OFF, OFF,
-                     BLUE, OFF, RED, RED, RED, OFF, OFF, OFF,
-                     BLUE, OFF, BLUE, BLUE, RED, OFF, OFF, OFF,
-                     BLUE, OFF, BLUE, BLUE, OFF, OFF, OFF, OFF,
-                     BLUE, RED, BLUE, BLUE, RED, OFF, OFF, OFF,
-                     RED, RED, RED, RED, BLUE, OFF, OFF, OFF,
-                     RED, RED, BLUE, BLUE, BLUE, OFF, OFF, OFF,
-                     OFF, OFF, OFF, BLUE, OFF, OFF, OFF, OFF))
+    grid.set_pixels(EXAMPLE)
     input()
 
 if __name__ == '__main__':
