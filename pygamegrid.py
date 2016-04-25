@@ -1,10 +1,39 @@
 #!/usr/bin/python3
-"""Virtual 8x8 LED grid implemented in pygame."""
+"""Virtual 8x8 LED grid implemented in pygame.
+
+LED Grid -         Copyright 2016 Zeth
+8x8GridDraw -      Copyright 2015 Richard Hayler
+Python Sense Hat - Copyright 2015 Raspberry Pi Foundation
+
+The interface aims to be similar to the public interface of the
+Raspberry Pi Sense HAT library, such that it is useful in mocking up
+software for it and other such devices.
+
+The implementation however is rather simpler.
+
+Many thanks to Richard Hayler.
+The LED class, graphics, etc are based on 8x8GridDraw
+https://github.com/topshed/RPi_8x8GridDraw
+http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.html
+
+It should work anywhere pygame can run, if not then it is a bug,
+please tell me.
+
+So far I have tested it on:
+
+* Debian Jessie AMD64 Python 3.5/2.7
+* Raspbian Wheezy 3.2 on Raspberry Pi 2
+* Raspbian Jessie 2.7/3.4 on Raspberry Pi 3
+* Raspbian Stretch 2.7/3.4 on Raspberry Pi 3
+
+This should work on all versions of Python 3 as well as your grandma's
+Python 2.7. If not then it is a bug, please let me know.
+
+"""
 
 # Compatibility for old souls using Python 2 in their
 # zeppelins and chariots etc
 from __future__ import division
-
 
 import os
 
@@ -21,10 +50,6 @@ class LEDGrid(object):
     """This class provides an on-screen representation of an 8x8 RGB LED
     grid, as found in the Raspberry Pi Sense HAT and other products
     such as the Unicorn HAT.
-
-    The interface aims to be similar to the public interface of the
-    Raspberry Pi Sense HAT library, such that it is useful in mocking
-    up software for it and other such devices.
 
     By default, setting colour of an LED to 0,0,0 will turn it off.
     If instead you want it to show a solid black, set black_is_colour=True
@@ -44,7 +69,7 @@ class LEDGrid(object):
         self._title = title or "LED Grid"
         self._rotation = 0
         self._leds = []  # The LED matrix
-        self._pixels = []  # The list of pixels
+        self._pixels = [OFF] * 64  # The list of pixels
         self._basic = False
         self._background = None
         self._screen = screen
@@ -191,7 +216,9 @@ class LEDGrid(object):
             if element > 255 or element < 0:
                 raise ValueError('Pixel elements must be between 0 and 255')
 
-        led = self._get_led(x_pos, y_pos)
+        index = y_pos * 8 + x_pos
+        self._pixels[index] = pixel
+        led = self._leds[self._rotate(index)]
         led.colour = pixel
 
         if self._basic:
@@ -223,6 +250,7 @@ class LEDGrid(object):
             raise IOError('%s not found' % file_path)
 
         img = Image.open(file_path).convert('RGB')
+        # pylint: disable=bad-builtin
         pixel_list = list(map(list, img.getdata()))
 
         if redraw:
@@ -334,7 +362,7 @@ class LED(object):
     def colour(self, colour):
         """Set the current colour of the LED."""
         self._colour = colour
-        if colour == BLACK and not self._black_is_colour:
+        if colour == tuple(OFF) and not self._black_is_colour:
             self.lit = False
         else:
             self.lit = True
