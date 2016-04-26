@@ -36,14 +36,16 @@ Python 2.7. If not then it is a bug, please let me know.
 from __future__ import division
 
 import os
+import time
+import base64
+import io
 
+import pygame
 # Optional image support
 try:
     from PIL import Image  # pillow
 except ImportError:
     Image = None
-
-import pygame
 
 
 class LEDGrid(object):
@@ -77,6 +79,8 @@ class LEDGrid(object):
             self._setup_basic_screen()
         else:
             self._setup_leds()
+        self._text_dict = {}
+        self._load_text_assets()
 
     @property
     def rotation(self):
@@ -159,24 +163,6 @@ class LEDGrid(object):
 
         if self._basic:
             self._draw_basic_screen()
-
-    def _rotate(self, index):
-        """Rotate the data to the right direction.  Even seemingly un-rotated
-        0 rotation needs work because what the SenseHAT's
-        micro-controller expects is not what we (and pygame) expect.
-        """
-        led = self._leds[index]
-        if self.rotation == 0:
-            return (led.pos[1] * 8) + led.pos[0]
-        elif self.rotation == 90:
-            return ((7 - led.pos[0]) * 8) + led.pos[1]
-        elif self.rotation == 180:
-            return ((7 - led.pos[1]) * 8 +
-                    (7 - led.pos[0]))
-        elif self.rotation == 270:
-            return (led.pos[0] * 8) + (7 - led.pos[1])
-        else:
-            raise ValueError('Rotation must be 0, 90, 180 or 270 degrees')
 
     def get_pixels(self):
         """
@@ -284,6 +270,87 @@ class LEDGrid(object):
 
         self.set_pixels([colour] * 64)
 
+    def _get_char_pixels(self, s):
+        """
+        Internal. Safeguards the character indexed dictionary for the
+        show_message function below
+        """
+
+        if len(s) == 1 and s in self._text_dict.keys():
+            return list(self._text_dict[s])
+        else:
+            return list(self._text_dict['?'])
+
+    def show_message(self,
+                     text_string,
+                     scroll_speed=.1,
+                     text_colour=(255, 255, 255),
+                     back_colour=(0, 0, 0)):
+        """
+        Scrolls a string of text across the LED matrix using the specified
+        speed and colours
+        """
+
+        # We must rotate the pixel map left through 90 degrees when drawing
+        # text, see _load_text_assets
+        previous_rotation = self._rotation
+        self._rotation -= 90
+        if self._rotation < 0:
+            self._rotation = 270
+        dummy_colour = [None, None, None]
+        string_padding = [dummy_colour] * 64
+        letter_padding = [dummy_colour] * 8
+        # Build pixels from dictionary
+        scroll_pixels = []
+        scroll_pixels.extend(string_padding)
+        for s in text_string:
+            scroll_pixels.extend(
+                self._trim_whitespace(self._get_char_pixels(s)))
+            scroll_pixels.extend(letter_padding)
+        scroll_pixels.extend(string_padding)
+        # Recolour pixels as necessary
+        coloured_pixels = [
+            text_colour if pixel == [255, 255, 255] else back_colour
+            for pixel in scroll_pixels
+        ]
+        # Shift right by 8 pixels per frame to scroll
+        scroll_length = len(coloured_pixels) // 8
+        for i in range(scroll_length - 8):
+            start = i * 8
+            end = start + 64
+            self.set_pixels(coloured_pixels[start:end])
+            time.sleep(scroll_speed)
+        self._rotation = previous_rotation
+
+    def show_letter(self,
+                    s,
+                    text_colour=(255, 255, 255),
+                    back_colour=(0, 0, 0)):
+        """
+        Displays a single text character on the LED matrix using the specified
+        colours
+        """
+
+        if len(s) > 1:
+            raise ValueError(
+                'Only one character may be passed into this method')
+        # We must rotate the pixel map left through 90 degrees when drawing
+        # text, see _load_text_assets
+        previous_rotation = self._rotation
+        self._rotation -= 90
+        if self._rotation < 0:
+            self._rotation = 270
+        dummy_colour = [None, None, None]
+        pixel_list = [dummy_colour] * 8
+        pixel_list.extend(self._get_char_pixels(s))
+        pixel_list.extend([dummy_colour] * 16)
+        coloured_pixels = [
+            text_colour if pixel == [255, 255, 255] else back_colour
+            for pixel in pixel_list
+        ]
+        self.set_pixels(coloured_pixels)
+        self._rotation = previous_rotation
+
     def _setup_basic_screen(self):
         """A basic pygame screen on which to show the LED grid."""
         self._basic = True
@@ -327,6 +394,75 @@ class LEDGrid(object):
     def _get_pixel(self, x_pos, y_pos):
         """Get a Pixel from a particular coordinate."""
         return self._pixels[y_pos * 8 + x_pos]
+
+    def _rotate(self, index):
+        """Rotate the data to the right direction.  Even seemingly un-rotated
+        0 rotation needs work because what the SenseHAT's
+        micro-controller expects is not what we (and pygame) expect.
+        """
+        led = self._leds[index]
+        if self.rotation == 0:
+            return (led.pos[1] * 8) + led.pos[0]
+        elif self.rotation == 90:
+            return ((7 - led.pos[0]) * 8) + led.pos[1]
+        elif self.rotation == 180:
+            return ((7 - led.pos[1]) * 8 +
+                    (7 - led.pos[0]))
+        elif self.rotation == 270:
+            return (led.pos[0] * 8) + (7 - led.pos[1])
+        else:
+            raise ValueError('Rotation must be 0, 90, 180 or 270 degrees')
+
+    ####
+    # Text assets
+    ####
+
+    # Text asset files are rotated right through 90 degrees to allow blocks of
+    # 40 contiguous pixels to represent one 5 x 8 character. These are stored
+    # in a 8 x 640 pixel png image with characters arranged adjacently
+    # Consequently we must rotate the pixel map left through 90 degrees to
+    # compensate when drawing text
+
+    def _load_text_assets(self, text_image_file='sense_hat_text.png'):
+        """
+        Internal. Builds a character indexed dictionary of pixels used by the
+        show_message function below
+        """
+        image_bytes = base64.b64decode(TEXT_IMAGES)
+        bytestream = io.BytesIO(image_bytes)
+        img = Image.open(bytestream)
+
+        # pylint: disable=bad-builtin
+        text_pixels = list(map(list, img.getdata()))
+
+        self._text_dict = {}
+        for index, s in enumerate(TEXT_PIXELS):
+            start = index * 40
+            end = start + 40
+            char = text_pixels[start:end]
+            self._text_dict[s] = char
+
+    def _trim_whitespace(self, char):  # For loading text assets only
+        """
+        Internal. Trims white space pixels from the front and back of loaded
+        text characters
+        """
+
+        psum = lambda x: sum(sum(x, []))
+        if psum(char) > 0:
+            is_empty = True
+            while is_empty:  # From front
+                row = char[0:8]
+                is_empty = psum(row) == 0
+                if is_empty:
+                    del char[0:8]
+            is_empty = True
+            while is_empty:  # From back
+                row = char[-8:]
+                is_empty = psum(row) == 0
+                if is_empty:
+                    del char[-8:]
+        return char
 
 
 class LED(object):
@@ -423,6 +559,28 @@ EXAMPLE = (BLUE, BLUE, BLUE, BLUE, RED, OFF, OFF, OFF,
            RED, RED, RED, RED, BLUE, OFF, OFF, OFF,
            RED, RED, BLUE, BLUE, BLUE, OFF, OFF, OFF,
            OFF, OFF, OFF, BLUE, OFF, OFF, OFF, OFF)
+
+TEXT_PIXELS = (r' +-*/!"#$><0123456789.=)(ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+               r"abcdefghijklmnopqrstuvwxyz?,;:|@%[&_']\~")
+
+TEXT_IMAGES = (
+    b'iVBORw0KGgoAAAANSUhEUgAAAAgAAAKACAIAAAAuEa5AAAAACXBIWXMAAAsTAAALEwEAmpwYA'
+    b'AAAB3RJTUUH3wISDSkNnUO4KwAAABl0RVh0Q29tbWVudABDcmVhdGVkIHdpdGggR0lNUFeBDh'
+    b'cAAAMGSURBVGje7VrJcsMgDDUa/v+X6aGZ2AYtT0iJO1Pp1Jpg7buP40/AGOP6L0m/a+tvW2t'
+    b'br3r04EbrRDHPh59zFQf/22fODGhjjNaawXwMGkurhsN/Q9RHY4Vzvirjxo1K/mC6pOJgb1ho'
+    b'ILM4n1zPNIp3YwnsHzxJEI+y165of/+m969EPqYzIDIYIgJ07vdfCccxxmDPiGVbE8ksvtsxj'
+    b'1/SIEmvpevTmYQJp3YG2O7qOJifa+85qVgJZTiHHKdfxXA1tdkSGUIn5mllzaBKFa2t2hsfPK'
+    b'2+HM3Y9fyU/WOvZmBxdJF8P3LWAc90B0nM0BId2bCq6Is1XEZWa/4ywqhL+FdlZbX1XKxFd61'
+    b'dxEGivL/gamRUJI7oQ6gFbWVnLIo6LBFAHhY7SebUbZtM0Tn7TquG08SO1qJ91ccvDqsCyGh4'
+    b'ARxohOtoVb7bHmgXyaFBI2V2m7jdbtuOuz2D848bA1/AQjMAEQc53HL3qYg84uewdCUcHj9Pi'
+    b'XBzAenzWnLI/OWDa/sU5JxvFN+RE2oUCc0nWcWEEfo8HUuw+flCkBHjLtkNV3i42Pgxams9MM'
+    b'PUunYoyPTJvAODLfnGam2vxAL1FeKg0amxmZa8uY84CiN2lgCLL9ZBirKSyw9jIqtNozRXuyI'
+    b'nSM8xzlUf9HSivoDsyecM8gydOwdSmsT8TTVWkX3K2qVpkL9jOezZK+pqh9vaO1uw7I2881Iq'
+    b'I12+sAEGQoEZMhqWPtsoOhk0RqFbWU28QXmVi9/aCaI90c9vWQ3aRqeE1yNhqRfvhG3vA26Ej'
+    b'cG5xY3n81hiw5pq6OsEYLsUL1gkDcJj9cSO5Y2DdnGg7QosXWjXD1R94XpXtU+tHPNITKNKXG'
+    b'0FWhl/YXHro7TeMSY0uD8NfOYDBxZmKyNtLfPxayuhB2BjdI/2MfYKW6zhxIW0+qkKO7IQPUr'
+    b'tcVg7V4cDTuluLdx8dmVNINmv4tRNgyMbPLs/fzTguFULLCcTm8b400AtuptVj4KCgoKCgoKC'
+    b'goKCgoKCgoKCfwo/4wajTHi9a/gAAAAASUVORK5CYII=')
 
 
 def main():
