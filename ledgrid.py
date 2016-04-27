@@ -1,23 +1,63 @@
 #!/usr/bin/python3
+
 """Virtual 8x8 LED grid implemented in pygame.
 
 LED Grid -         Copyright 2016 Zeth
 8x8GridDraw -      Copyright 2015 Richard Hayler
 Python Sense Hat - Copyright 2015 Raspberry Pi Foundation
 
+--------------
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+
+    * Neither the name of the copyright holder nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+--------------
+
 The interface aims to be similar to the public interface of the
 Raspberry Pi Sense HAT library, such that it is useful in mocking up
 software for it and other such devices.
 
-The implementation however is rather simpler.
+However, implementation however is rather simpler and uses pygame
+instead of the hardware HAT.
+
+In this file there is the LEDGrid class and then at the bottom of this
+file are some examples of usage.
+
+Many existing Sense HAT LED demos will work using the following import
+statement:
+
+from ledgrid import LEDGrid as SenseHat
 
 Many thanks to Richard Hayler.
-The LED class, graphics, etc are based on 8x8GridDraw
+The LED class, graphics, etc are based on his 8x8GridDraw
 https://github.com/topshed/RPi_8x8GridDraw
 http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.html
 
-It should work anywhere pygame can run, if not then it is a bug,
-please tell me.
+It should work anywhere pygame can run, if not then it is probably a
+bug, please tell me.
 
 So far I have tested it on:
 
@@ -34,6 +74,7 @@ Python 2.7. If not then it is a bug, please let me know.
 # Compatibility for old souls using Python 2 in their
 # zeppelins and chariots etc
 from __future__ import division
+from __future__ import print_function
 
 import os
 import time
@@ -235,9 +276,7 @@ class LEDGrid(object):
         if not os.path.exists(file_path):
             raise IOError('%s not found' % file_path)
 
-        img = Image.open(file_path).convert('RGB')
-        # pylint: disable=bad-builtin
-        pixel_list = list(map(list, img.getdata()))
+        pixel_list = self._get_pixel_list_from_file(file_path)
 
         if redraw:
             self.set_pixels(pixel_list)
@@ -270,17 +309,7 @@ class LEDGrid(object):
 
         self.set_pixels([colour] * 64)
 
-    def _get_char_pixels(self, s):
-        """
-        Internal. Safeguards the character indexed dictionary for the
-        show_message function below
-        """
-
-        if len(s) == 1 and s in self._text_dict.keys():
-            return list(self._text_dict[s])
-        else:
-            return list(self._text_dict['?'])
-
+    # pylint: disable=too-many-locals
     def show_message(self,
                      text_string,
                      scroll_speed=.1,
@@ -303,9 +332,9 @@ class LEDGrid(object):
         # Build pixels from dictionary
         scroll_pixels = []
         scroll_pixels.extend(string_padding)
-        for s in text_string:
+        for character in text_string:
             scroll_pixels.extend(
-                self._trim_whitespace(self._get_char_pixels(s)))
+                self._trim_whitespace(self._get_char_pixels(character)))
             scroll_pixels.extend(letter_padding)
         scroll_pixels.extend(string_padding)
         # Recolour pixels as necessary
@@ -323,7 +352,7 @@ class LEDGrid(object):
         self._rotation = previous_rotation
 
     def show_letter(self,
-                    s,
+                    character,
                     text_colour=(255, 255, 255),
                     back_colour=(0, 0, 0)):
         """
@@ -331,7 +360,7 @@ class LEDGrid(object):
         colours
         """
 
-        if len(s) > 1:
+        if len(character) > 1:
             raise ValueError(
                 'Only one character may be passed into this method')
         # We must rotate the pixel map left through 90 degrees when drawing
@@ -342,7 +371,7 @@ class LEDGrid(object):
             self._rotation = 270
         dummy_colour = [None, None, None]
         pixel_list = [dummy_colour] * 8
-        pixel_list.extend(self._get_char_pixels(s))
+        pixel_list.extend(self._get_char_pixels(character))
         pixel_list.extend([dummy_colour] * 16)
         coloured_pixels = [
             text_colour if pixel == [255, 255, 255] else back_colour
@@ -413,6 +442,17 @@ class LEDGrid(object):
         else:
             raise ValueError('Rotation must be 0, 90, 180 or 270 degrees')
 
+    def _get_char_pixels(self, character):
+        """
+        Internal. Safeguards the character indexed dictionary for the
+        show_message function above
+        """
+
+        if len(character) == 1 and character in self._text_dict.keys():
+            return list(self._text_dict[character])
+        else:
+            return list(self._text_dict['?'])
+
     ####
     # Text assets
     ####
@@ -423,24 +463,42 @@ class LEDGrid(object):
     # Consequently we must rotate the pixel map left through 90 degrees to
     # compensate when drawing text
 
-    def _load_text_assets(self, text_image_file='sense_hat_text.png'):
-        """
-        Internal. Builds a character indexed dictionary of pixels used by the
-        show_message function below
-        """
-        image_bytes = base64.b64decode(TEXT_IMAGES)
-        bytestream = io.BytesIO(image_bytes)
-        img = Image.open(bytestream)
-
+    @staticmethod
+    def _get_pixel_list_from_file(file_path):
+        """Load an image from an image file_path or file buffer."""
+        img = Image.open(file_path).convert('RGB')
         # pylint: disable=bad-builtin
-        text_pixels = list(map(list, img.getdata()))
+        return list(map(list, img.getdata()))
+
+    def _load_text_assets(self,
+                          text_image_file=None,
+                          text_file=None):
+        """Internal. Builds a character indexed dictionary of
+        pixels used by the show_message function below
+        """
+        if not text_file:
+            loaded_text = TEXT_PIXELS
+        else:
+            with open(text_file, 'r') as file_buf:
+                loaded_text = file_buf.read()
+        if not text_image_file:
+            image_bytes = base64.b64decode(TEXT_IMAGES)
+            text_image_file = io.BytesIO(image_bytes)
+
+        text_pixels = self._get_pixel_list_from_file(
+            text_image_file)
 
         self._text_dict = {}
-        for index, s in enumerate(TEXT_PIXELS):
+        for index, character in enumerate(loaded_text):
             start = index * 40
             end = start + 40
             char = text_pixels[start:end]
-            self._text_dict[s] = char
+            self._text_dict[character] = char
+
+    @staticmethod
+    def psum(matrix):
+        """Return the sum of a matrix."""
+        return sum(sum(matrix, []))
 
     def _trim_whitespace(self, char):  # For loading text assets only
         """
@@ -448,18 +506,17 @@ class LEDGrid(object):
         text characters
         """
 
-        psum = lambda x: sum(sum(x, []))
-        if psum(char) > 0:
+        if self.psum(char) > 0:
             is_empty = True
             while is_empty:  # From front
                 row = char[0:8]
-                is_empty = psum(row) == 0
+                is_empty = self.psum(row) == 0
                 if is_empty:
                     del char[0:8]
             is_empty = True
             while is_empty:  # From back
                 row = char[-8:]
-                is_empty = psum(row) == 0
+                is_empty = self.psum(row) == 0
                 if is_empty:
                     del char[-8:]
         return char
@@ -537,6 +594,33 @@ class LED(object):
         else:
             self.lit = True
 
+
+# These are the characters that the show_message method supports:
+
+TEXT_PIXELS = (r' +-*/!"#$><0123456789.=)(ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+               r"abcdefghijklmnopqrstuvwxyz?,;:|@%[&_']\~")
+
+# These are pixel maps of the above characters, in a really condensed format.
+
+TEXT_IMAGES = (
+    b'iVBORw0KGgoAAAANSUhEUgAAAAgAAAKACAIAAAAuEa5AAAAACXBIWXMAAAsTAAALEwEAmpwY'
+    b'AAAAB3RJTUUH3wISDSkNnUO4KwAAABl0RVh0Q29tbWVudABDcmVhdGVkIHdpdGggR0lNUFeB'
+    b'DhcAAAMGSURBVGje7VrJcsMgDDUa/v+X6aGZ2AYtT0iJO1Pp1Jpg7buP40/AGOP6L0m/a+tv'
+    b'W2tbr3r04EbrRDHPh59zFQf/22fODGhjjNaawXwMGkurhsN/Q9RHY4Vzvirjxo1K/mC6pOJg'
+    b'b1hoILM4n1zPNIp3YwnsHzxJEI+y165of/+m969EPqYzIDIYIgJ07vdfCccxxmDPiGVbE8ks'
+    b'vtsxj1/SIEmvpevTmYQJp3YG2O7qOJifa+85qVgJZTiHHKdfxXA1tdkSGUIn5mllzaBKFa2t'
+    b'2hsfPK2+HM3Y9fyU/WOvZmBxdJF8P3LWAc90B0nM0BId2bCq6Is1XEZWa/4ywqhL+FdlZbX1'
+    b'XKxFd61dxEGivL/gamRUJI7oQ6gFbWVnLIo6LBFAHhY7SebUbZtM0Tn7TquG08SO1qJ91ccv'
+    b'DqsCyGh4ARxohOtoVb7bHmgXyaFBI2V2m7jdbtuOuz2D848bA1/AQjMAEQc53HL3qYg84uew'
+    b'dCUcHj9PiXBzAenzWnLI/OWDa/sU5JxvFN+RE2oUCc0nWcWEEfo8HUuw+flCkBHjLtkNV3i4'
+    b'2Pgxams9MMPUunYoyPTJvAODLfnGam2vxAL1FeKg0amxmZa8uY84CiN2lgCLL9ZBirKSyw9j'
+    b'IqtNozRXuyInSM8xzlUf9HSivoDsyecM8gydOwdSmsT8TTVWkX3K2qVpkL9jOezZK+pqh9va'
+    b'O1uw7I2881IqI12+sAEGQoEZMhqWPtsoOhk0RqFbWU28QXmVi9/aCaI90c9vWQ3aRqeE1yNh'
+    b'qRfvhG3vA26EjcG5xY3n81hiw5pq6OsEYLsUL1gkDcJj9cSO5Y2DdnGg7QosXWjXD1R94XpX'
+    b'tU+tHPNITKNKXG0FWhl/YXHro7TeMSY0uD8NfOYDBxZmKyNtLfPxayuhB2BjdI/2MfYKW6zh'
+    b'xIW0+qkKO7IQPUrtcVg7V4cDTuluLdx8dmVNINmv4tRNgyMbPLs/fzTguFULLCcTm8b400At'
+    b'uptVj4KCgoKCgoKCgoKCgoKCgoKCfwo/4wajTHi9a/gAAAAASUVORK5CYII=')
+
 # Some friendly colours
 
 RED = (255, 0, 0)
@@ -560,34 +644,170 @@ EXAMPLE = (BLUE, BLUE, BLUE, BLUE, RED, OFF, OFF, OFF,
            RED, RED, BLUE, BLUE, BLUE, OFF, OFF, OFF,
            OFF, OFF, OFF, BLUE, OFF, OFF, OFF, OFF)
 
-TEXT_PIXELS = (r' +-*/!"#$><0123456789.=)(ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-               r"abcdefghijklmnopqrstuvwxyz?,;:|@%[&_']\~")
 
-TEXT_IMAGES = (
-    b'iVBORw0KGgoAAAANSUhEUgAAAAgAAAKACAIAAAAuEa5AAAAACXBIWXMAAAsTAAALEwEAmpwY'
-    b'AAAAB3RJTUUH3wISDSkNnUO4KwAAABl0RVh0Q29tbWVudABDcmVhdGVkIHdpdGggR0lNUFeB'
-    b'DhcAAAMGSURBVGje7VrJcsMgDDUa/v+X6aGZ2AYtT0iJO1Pp1Jpg7buP40/AGOP6L0m/a+tv'
-    b'W2tbr3r04EbrRDHPh59zFQf/22fODGhjjNaawXwMGkurhsN/Q9RHY4Vzvirjxo1K/mC6pOJg'
-    b'b1hoILM4n1zPNIp3YwnsHzxJEI+y165of/+m969EPqYzIDIYIgJ07vdfCccxxmDPiGVbE8ks'
-    b'vtsxj1/SIEmvpevTmYQJp3YG2O7qOJifa+85qVgJZTiHHKdfxXA1tdkSGUIn5mllzaBKFa2t'
-    b'2hsfPK2+HM3Y9fyU/WOvZmBxdJF8P3LWAc90B0nM0BId2bCq6Is1XEZWa/4ywqhL+FdlZbX1'
-    b'XKxFd61dxEGivL/gamRUJI7oQ6gFbWVnLIo6LBFAHhY7SebUbZtM0Tn7TquG08SO1qJ91ccv'
-    b'DqsCyGh4ARxohOtoVb7bHmgXyaFBI2V2m7jdbtuOuz2D848bA1/AQjMAEQc53HL3qYg84uew'
-    b'dCUcHj9PiXBzAenzWnLI/OWDa/sU5JxvFN+RE2oUCc0nWcWEEfo8HUuw+flCkBHjLtkNV3i4'
-    b'2Pgxams9MMPUunYoyPTJvAODLfnGam2vxAL1FeKg0amxmZa8uY84CiN2lgCLL9ZBirKSyw9j'
-    b'IqtNozRXuyInSM8xzlUf9HSivoDsyecM8gydOwdSmsT8TTVWkX3K2qVpkL9jOezZK+pqh9va'
-    b'O1uw7I2881IqI12+sAEGQoEZMhqWPtsoOhk0RqFbWU28QXmVi9/aCaI90c9vWQ3aRqeE1yNh'
-    b'qRfvhG3vA26EjcG5xY3n81hiw5pq6OsEYLsUL1gkDcJj9cSO5Y2DdnGg7QosXWjXD1R94XpX'
-    b'tU+tHPNITKNKXG0FWhl/YXHro7TeMSY0uD8NfOYDBxZmKyNtLfPxayuhB2BjdI/2MfYKW6zh'
-    b'xIW0+qkKO7IQPUrtcVg7V4cDTuluLdx8dmVNINmv4tRNgyMbPLs/fzTguFULLCcTm8b400At'
-    b'uptVj4KCgoKCgoKCgoKCgoKCgoKCfwo/4wajTHi9a/gAAAAASUVORK5CYII=')
+class BaseExample(object):
+    """The base class of the examples below."""
+
+    def __init__(self, grid=None):
+        self.grid = grid or LEDGrid()
+
+    def update_grid(self):
+        """Show the next animation."""
+        self.grid.set_pixels(EXAMPLE)
+
+    def run_for_seconds(self, seconds):
+        """Run until seconds are elasped."""
+        end = time.time() + seconds
+        while time.time() < end:
+            self.update_grid()
+
+    def run_forever(self):
+        """Run until killed, e.g. with Ctrl+C."""
+        while True:
+            self.update_grid()
+
+
+class Rainbow(BaseExample):
+    """Show a scrolling rainbow."""
+    pixels = [
+        [255, 0, 0], [255, 0, 0], [255, 87, 0], [255, 196, 0],
+        [205, 255, 0], [95, 255, 0], [0, 255, 13], [0, 255, 122],
+        [255, 0, 0], [255, 96, 0], [255, 205, 0], [196, 255, 0],
+        [87, 255, 0], [0, 255, 22], [0, 255, 131], [0, 255, 240],
+        [255, 105, 0], [255, 214, 0], [187, 255, 0], [78, 255, 0],
+        [0, 255, 30], [0, 255, 140], [0, 255, 248], [0, 152, 255],
+        [255, 223, 0], [178, 255, 0], [70, 255, 0], [0, 255, 40],
+        [0, 255, 148], [0, 253, 255], [0, 144, 255], [0, 34, 255],
+        [170, 255, 0], [61, 255, 0], [0, 255, 48], [0, 255, 157],
+        [0, 243, 255], [0, 134, 255], [0, 26, 255], [83, 0, 255],
+        [52, 255, 0], [0, 255, 57], [0, 255, 166], [0, 235, 255],
+        [0, 126, 255], [0, 17, 255], [92, 0, 255], [201, 0, 255],
+        [0, 255, 66], [0, 255, 174], [0, 226, 255], [0, 117, 255],
+        [0, 8, 255], [100, 0, 255], [210, 0, 255], [255, 0, 192],
+        [0, 255, 183], [0, 217, 255], [0, 109, 255], [0, 0, 255],
+        [110, 0, 255], [218, 0, 255], [255, 0, 183], [255, 0, 74]
+    ]
+
+    @staticmethod
+    def next_colour(pix):
+        """Move each colour along."""
+        red = pix[0]
+        green = pix[1]
+        blue = pix[2]
+
+        if red == 255 and green < 255 and blue == 0:
+            green += 1
+
+        if green == 255 and red > 0 and blue == 0:
+            red -= 1
+
+        if green == 255 and blue < 255 and red == 0:
+            blue += 1
+
+        if blue == 255 and green > 0 and red == 0:
+            green -= 1
+
+        if blue == 255 and red < 255 and green == 0:
+            red += 1
+
+        if red == 255 and blue > 0 and green == 0:
+            blue -= 1
+
+        pix[0] = red
+        pix[1] = green
+        pix[2] = blue
+
+    def update_grid(self):
+        for pix in self.pixels:
+            self.next_colour(pix)
+
+        self.grid.set_pixels(self.pixels)
+        time.sleep(2 / 1000.0)
+
+
+class QuestionMark(BaseExample):
+    """Show a question mark."""
+    def __init__(self, grid=None):
+        super(QuestionMark, self).__init__(grid)
+
+        question_mark = [
+            WHITE, WHITE, WHITE, RED, RED, WHITE, WHITE, WHITE,
+            WHITE, WHITE, RED, WHITE, WHITE, RED, WHITE, WHITE,
+            WHITE, WHITE, WHITE, WHITE, WHITE, RED, WHITE, WHITE,
+            WHITE, WHITE, WHITE, WHITE, RED, WHITE, WHITE, WHITE,
+            WHITE, WHITE, WHITE, RED, WHITE, WHITE, WHITE, WHITE,
+            WHITE, WHITE, WHITE, RED, WHITE, WHITE, WHITE, WHITE,
+            WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE,
+            WHITE, WHITE, WHITE, RED, WHITE, WHITE, WHITE, WHITE
+        ]
+        self.grid.set_pixels(question_mark)
+
+        self.grid.set_pixel(0, 0, 255, 0, 0)
+        self.grid.set_pixel(0, 7, 0, 255, 0)
+        self.grid.set_pixel(7, 0, 0, 0, 255)
+        self.grid.set_pixel(7, 7, 255, 0, 255)
+
+    def update_grid(self):
+        for rotation in [0, 90, 180, 270]:
+            self.grid.set_rotation(rotation)
+            time.sleep(0.3)
+
+
+class ColourCycle(BaseExample):
+    """Cycle through different colours over the whole grid."""
+    def __init__(self, grid=None):
+        super(ColourCycle, self).__init__(grid)
+        self.red = 255
+        self.green = 0
+        self.blue = 0
+
+    def next_colour(self):
+        """Update the colour values."""
+        if self.red == 255 and self.green < 255 and self.blue == 0:
+            self.green += 1
+
+        if self.green == 255 and self.red > 0 and self.blue == 0:
+            self.red -= 1
+
+        if self.green == 255 and self.blue < 255 and self.red == 0:
+            self.blue += 1
+
+        if self.blue == 255 and self.green > 0 and self.red == 0:
+            self.green -= 1
+
+        if self.blue == 255 and self.red < 255 and self.green == 0:
+            self.red += 1
+
+        if self.red == 255 and self.blue > 0 and self.green == 0:
+            self.blue -= 1
+
+    def update_grid(self):
+        self.grid.clear([self.red, self.green, self.blue])
+        time.sleep(2 / 1000.0)
+        self.next_colour()
 
 
 def main():
-    """Simple example."""
+    """Show some simple examples, mostly taken from the original sense hat
+    library."""
     grid = LEDGrid()
     grid.set_pixels(EXAMPLE)
-    input()
+    time.sleep(2)
+    if Image:
+        grid.show_message("Welcome to some examples",
+                          scroll_speed=0.05,
+                          text_colour=PURPLE)
+
+    for example in (ColourCycle, Rainbow, QuestionMark):
+        example().run_for_seconds(5)
+
+    if Image:
+        grid.show_message("Thanks for watching!",
+                          text_colour=RED,
+                          scroll_speed=0.07)
+    # pylint: disable=no-member
+    pygame.quit()
+
 
 if __name__ == '__main__':
     main()
