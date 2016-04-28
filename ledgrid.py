@@ -88,6 +88,8 @@ try:
 except ImportError:
     Image = None
 
+__version__ = "0.1"
+
 
 class LEDGrid(object):
     """This class provides an on-screen representation of an 8x8 RGB LED
@@ -121,7 +123,8 @@ class LEDGrid(object):
         else:
             self._setup_leds()
         self._text_dict = {}
-        self._load_text_assets()
+        if Image:
+            self._load_text_assets()
 
     @property
     def rotation(self):
@@ -319,6 +322,10 @@ class LEDGrid(object):
         Scrolls a string of text across the LED matrix using the specified
         speed and colours
         """
+        if not Image:
+            raise ImportError(
+                "Need PIL implementation (e.g. pillow module) to use "
+                "show_message method.")
 
         # We must rotate the pixel map left through 90 degrees when drawing
         # text, see _load_text_assets
@@ -359,6 +366,10 @@ class LEDGrid(object):
         Displays a single text character on the LED matrix using the specified
         colours
         """
+        if not Image:
+            raise ImportError(
+                "Need PIL implementation (e.g. pillow module) to use "
+                "show_letter method.")
 
         if len(character) > 1:
             raise ValueError(
