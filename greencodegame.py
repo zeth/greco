@@ -1,19 +1,13 @@
 #!/usr/bin/python3
-"""Green code reading game.
+
+"""Green code learning game.
+
 By Zeth, 2016
 
-Using Pygame ScreenHAT implementation by Richard Hayler.
-    Many thanks to Richard.
-    This LED class, graphics, etc are based on 8x8GridDraw
-    https://github.com/topshed/RPi_8x8GridDraw
-    http://richardhayler.blogspot.co.uk/2015/06/creating-images-for-astro-pi-hat.html
-
-TODO: use new simple text method everywhere.
 """
 
 from __future__ import division
 from __future__ import print_function
-
 
 import json
 import difflib
@@ -22,6 +16,9 @@ import pygame
 # pylint: disable=no-member,no-name-in-module
 from pygame.locals import (QUIT, KEYDOWN, K_RETURN, K_PAUSE,
                            K_HELP, K_INSERT, K_ESCAPE)
+
+from ledgrid import LEDGrid, LED
+
 from eztext import Input
 from green import GreenCode, WHITE, OFF
 
@@ -32,55 +29,6 @@ PAUSE_BUTTONS = (K_PAUSE, K_HELP, K_INSERT, K_ESCAPE)
 LETTERS = "etaoinshrdlcumwfgypbvkj0123456789etaoinshrdlcumwfgypbvkjxqz"
 
 TITLE = 'Green Code Learning Game'
-
-
-class LED(object):
-    """A virtual LED, shown using Pygame.
-    By Richard Hayler, see note in module docstring above.
-    """
-    def __init__(self, pos=(0, 0), radius=25, lit=False):
-        # Initializes the LED
-        self.pos = pos
-        self.lit = lit
-        self.radius = radius
-        self.screen = pygame.display.get_surface()
-        self.color = WHITE
-        self.pos_x = int(self.pos[0] * (self.radius * 2 + 5)) + (self.radius)
-        self.pos_y = int(self.pos[1] * (self.radius *
-                                        2 + 5)) + (self.radius) + 40
-
-    def draw(self):
-        """Draws the LED."""
-        # Draws a circle
-        if self.lit:  # has it been clicked?
-            thickness = 0
-        else:
-            self.color = [255, 255, 255]
-            thickness = 1
-
-        pygame.draw.circle(
-            self.screen,
-            self.color,
-            (self.pos_x, self.pos_y),
-            self.radius, thickness)
-
-        # Draws a square
-        pygame.draw.rect(
-            self.screen,
-            self.color,
-            (self.pos_x - self.radius,
-             self.pos_y - self.radius,
-             (2 * self.radius),
-             (2 * self.radius)),
-            thickness)
-
-    def clicked(self, colour):
-        """What to do when clicked, note we don't need this."""
-        self.color = colour
-        if self.lit:
-            self.lit = False
-        else:
-            self.lit = True
 
 
 class Game(object):  # pylint: disable=too-many-instance-attributes
@@ -96,11 +44,11 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.frame_count = 0
         self.frame_rate = 60
         self._current_target = 'e'
-        self.leds = []
         self.key = []
         self.fonts = {}
         self.gcode = GreenCode(hat=None)
-        self._setup()
+        self._setup_game()
+        self._setup_ui()
         self.current_target = 'e'
 
     def run_game(self):
@@ -122,25 +70,27 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
             self.text_box.update(events)
             self._update_display()
 
-    def _setup(self):
-        """Setup pygame and call other setup commands."""
+    def _setup_game(self):
+        """Load the levels and set the game state."""
         with open('levels1.json') as level_buf:
             self.levels = json.load(level_buf)
         with open('levels2.json') as level_buf:
             self.levels.extend(json.load(level_buf))
         self._setup_info()
+
+    def _setup_ui(self):
         pygame.init()  # pylint: disable=no-member
         pygame.font.init()
         self._setup_fonts()
         pygame.display.set_caption(TITLE)
-        self.screen = pygame.display.set_mode((700, 395), 0, 32)
+        self.screen = pygame.display.set_mode((700, 405), 0, 32)
         # pylint: disable=too-many-function-args
         background = pygame.Surface(self.screen.get_size())
         self.background = background.convert()
         self.background.fill((0, 51, 25))
+        self.grid = LEDGrid(screen=self.screen, margins=(10, 40))
         self._setup_text_entry()
         self.clock = pygame.time.Clock()
-        self._setup_leds()
         self._setup_key()
         self._update_key()
 
@@ -179,11 +129,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.paused = True
         self.screen.fill(OFF)
         self._draw_top_headings()
-        leds = []
-        self._setup_leds(leds)
-        self._update_leds(message="welcome friend",
-                          leds=leds)
-        self._draw_leds(leds)
+        self._update_leds(message="welcome friend")
 
         self._write_text(
             'Welcome',
@@ -236,32 +182,22 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.paused = True
         self.screen.fill(OFF)
         self._draw_top_headings()
-        small_font = self.fonts["small"]
-        medium_font = self.fonts["medium"]
 
-        text = small_font.render('You wrote:', 1, WHITE)
-        self.screen.blit(text, (370, 15))
+        self._write_text('You wrote:', 370, 15)
 
         if len(guess) < 8:
-            text = medium_font.render(guess, 1, WHITE)
-            self.screen.blit(text, (370, 40))
+            self._write_text(guess, 370, 40, "medium")
         else:
-            text = medium_font.render(guess[:8], 1, WHITE)
-            self.screen.blit(text, (370, 40))
-            text = medium_font.render(guess[8:], 1, WHITE)
-            self.screen.blit(text, (370, 80))
+            self._write_text(guess[:8], 370, 40, "medium")
+            self._write_text(guess[8:], 370, 80, "medium")
 
-        text = small_font.render('Correct Answer:', 1, WHITE)
-        self.screen.blit(text, (370, 140))
+        self._write_text('Correct Answer:', 370, 140)
 
         if len(self.current_target) < 8:
-            text = medium_font.render(self.current_target, 1, WHITE)
-            self.screen.blit(text, (370, 165))
+            self._write_text(self.current_target, 370, 165, "medium")
         else:
-            text = medium_font.render(self.current_target[:8], 1, WHITE)
-            self.screen.blit(text, (370, 165))
-            text = medium_font.render(self.current_target[8:], 1, WHITE)
-            self.screen.blit(text, (370, 205))
+            self._write_text(self.current_target[:8], 370, 165, "medium")
+            self._write_text(self.current_target[8:], 370, 205, "medium")
 
         self._draw_leds()
         self._do_pause()
@@ -271,6 +207,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.paused = True
         self.screen.fill(OFF)
         self._draw_top_headings()
+        self._update_leds(message="paused")
         key_font = self.fonts["key"]
 
         text = key_font.render("Paused", 1, WHITE)
@@ -279,12 +216,6 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         teapot = pygame.image.load("dotty-tea-pot.png")
         self.screen.blit(teapot, (400, 50))
 
-        leds = []
-        self._setup_leds(leds)
-        self._update_leds(
-            message="paused",
-            leds=leds)
-        self._draw_leds(leds)
         self._do_pause()
 
     def _do_pause(self):
@@ -325,22 +256,12 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     def _setup_text_entry(self):
         """Setup the text entry field."""
         self.text_box = Input(
-            x=360,
+            x=370,
             y=300,
             maxlength=16,
             color=(255, 0, 0),
             prompt='')
         self.text_box.draw(self.screen)
-
-    def _setup_leds(self, leds=None):
-        """Setup the virtual LEDs on the screen."""
-        if not leds:
-            leds = self.leds
-        for rank in range(0, 8):
-            for row in range(0, 8):
-                led = LED(radius=20,
-                          pos=(rank, row))
-                leds.append(led)
 
     def _play_sound(self):
         """Play the level change silly noise."""
@@ -366,26 +287,15 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         del self._current_target
 
     def _update_leds(self,
-                     message=None,
-                     leds=None):
+                     message=None):
         """Set the LED colours."""
         if not message:
             message = self._current_target
-        if not leds:
-            leds = self.leds
-        # Reset first
-        for led in leds:
-            led.lit = False
         # Get the message
         grids = self.gcode.parse_message(message)
         grid = grids[0]
         # Display the message
-        for led in leds:
-            rotated = (led.pos[1] * 8) + led.pos[0]
-            if grid[rotated] == OFF:
-                led.lit = False
-            else:
-                led.clicked(grid[rotated])
+        self.grid.set_pixels(grid)
 
     def _setup_key(self):
         """Setup the helpful key."""
@@ -406,59 +316,44 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
     def _draw_top_headings(self):
         """Draw the top headings."""
-        small_font = self.fonts["small"]
-
         # Title
-        text = small_font.render(TITLE, 1, WHITE)
-        self.screen.blit(text, (150, 15))
+        self._write_text(TITLE, 150, 15, "small")
 
         # Level
-        text = small_font.render('Level ' + str(self.info['level']), 1, WHITE)
-        self.screen.blit(text, (5, 15))
+        level = 'Level ' + str(self.info['level'])
+        self._write_text(level, 5, 15, "small")
 
     def _draw_side_info(self):
         """Draw the side headings."""
-        small_font = self.fonts["small"]
-        key_font = self.fonts["key"]
-
-        # Last Words per minute
-        text = small_font.render('Last WPM:', 1, WHITE)
-        self.screen.blit(text, (370, 15))
+        # Last words per minute
+        self._write_text('Last WPM:', 370, 15)
 
         # Last words per minute number
         wpm = "%.0f" % self.info['wpm'][-1]
-        text = key_font.render(wpm, 1, WHITE)
-        self.screen.blit(text, (370, 30))
+        self._write_text(wpm, 370, 30, "key")
 
         # Average Words per minute
-        text = small_font.render('Average WPM:', 1, WHITE)
-        self.screen.blit(text, (520, 15))
+        self._write_text('Average WPM:', 520, 15)
 
         # Average words per minute number
         awpm = "%.0f" % (sum(self.info['wpm']) / len(self.info['wpm']))
-        text = key_font.render(awpm, 1, WHITE)
-        self.screen.blit(text, (525, 30))
+        self._write_text(awpm, 525, 30, "key")
 
         # Accuracy
-        text = small_font.render('Accuracy:', 1, WHITE)
-        self.screen.blit(text, (370, 100))
+        self._write_text('Accuracy:', 370, 100,)
 
         # Accuracy percentage
-        apc =  "%.0f" % self._get_average_accuracy()
-        text = key_font.render(apc + '%', 1, WHITE)
-        self.screen.blit(text, (370, 115))
+        apc = "%.0f" % self._get_average_accuracy()
+        self._write_text(apc + '%', 370, 115, "key")
 
         # Last character title
-        text = small_font.render('Last char added:', 1, WHITE)
-        self.screen.blit(text, (520, 100))
+        self._write_text('Last char added:', 520, 100)
 
         # Last character key char
-        text = key_font.render(self.info['key_char'], 1, WHITE)
-        self.screen.blit(text, (560, 115))
+        self._write_text(self.info['key_char'], 560, 115, "key")
 
         # Time
-        text = small_font.render('Time:', 1, WHITE)
-        self.screen.blit(text, (370, 185))
+        self._write_text('Time:', 370, 185)
 
     def _draw_text_box(self):
         """Draw the text input box."""
@@ -493,9 +388,11 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     def _draw_leds(self, leds=None):
         """Draw the LEDS."""
         if not leds:
-            leds = self.leds
-        for led in leds:
-            led.draw()
+            # pylint: disable=protected-access
+            leds = self.grid._draw_leds()
+        else:
+            for led in leds:
+                led.draw()
 
     def _draw_key(self):
         """Draw the key for the last character added."""
