@@ -11,6 +11,10 @@ Using Pygame ScreenHAT implementation by Richard Hayler.
 TODO: use new simple text method everywhere.
 """
 
+from __future__ import division
+from __future__ import print_function
+
+
 import json
 import difflib
 from random import choice, randint
@@ -422,7 +426,8 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.screen.blit(text, (370, 15))
 
         # Last words per minute number
-        text = key_font.render(str(self.info['wpm'][-1]), 1, WHITE)
+        wpm = "%.0f" % self.info['wpm'][-1]
+        text = key_font.render(wpm, 1, WHITE)
         self.screen.blit(text, (370, 30))
 
         # Average Words per minute
@@ -430,8 +435,8 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.screen.blit(text, (520, 15))
 
         # Average words per minute number
-        text = key_font.render(str(round(sum(
-            self.info['wpm']) / len(self.info['wpm']))), 1, WHITE)
+        awpm = "%.0f" % (sum(self.info['wpm']) / len(self.info['wpm']))
+        text = key_font.render(awpm, 1, WHITE)
         self.screen.blit(text, (525, 30))
 
         # Accuracy
@@ -439,8 +444,8 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.screen.blit(text, (370, 100))
 
         # Accuracy percentage
-        text = key_font.render(str(
-            self._get_average_accuracy()) + '%', 1, WHITE)
+        apc =  "%.0f" % self._get_average_accuracy()
+        text = key_font.render(apc + '%', 1, WHITE)
         self.screen.blit(text, (370, 115))
 
         # Last character title
