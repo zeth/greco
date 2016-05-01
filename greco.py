@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-"""Green code learning game.
+"""Greco - Green Code learning game.
 
 By Zeth, 2016
 
@@ -11,7 +11,17 @@ from __future__ import print_function
 
 import json
 import difflib
-from random import choice, randint
+from random import choice
+
+# Use SDL2 Pygame if available, SD1 if not.
+try:
+    import pygame_sdl2
+except ImportError:
+    SDL = 1
+else:
+    pygame_sdl2.import_as_pygame()
+    SDL = 2
+
 import pygame
 # pylint: disable=no-member,no-name-in-module
 from pygame.locals import (QUIT, KEYDOWN, K_RETURN, K_PAUSE,
@@ -28,7 +38,7 @@ PAUSE_BUTTONS = (K_PAUSE, K_HELP, K_INSERT, K_ESCAPE)
 
 LETTERS = "etaoinshrdlcumwfgypbvkj0123456789etaoinshrdlcumwfgypbvkjxqz"
 
-TITLE = 'Green Code Learning Game'
+TITLE = 'Greco - Green Code Learning Game'
 
 
 class Game(object):  # pylint: disable=too-many-instance-attributes
@@ -106,10 +116,14 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
     def _setup_fonts(self):
         """Set the font sizes."""
+        small = 12 if SDL == 2 else 20
+        medium = 30 if SDL == 2 else 50
+        key = 60 if SDL == 2 else 100
+
         self.fonts = {
-            "small": pygame.font.Font(None, 20),
-            "medium": pygame.font.Font(None, 50),
-            "key": pygame.font.Font(None, 100)
+            "small": pygame.font.Font(None, small),
+            "medium": pygame.font.Font(None, medium),
+            "key": pygame.font.Font(None, key)
         }
 
     # pylint: disable=too-many-arguments
@@ -208,14 +222,9 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.screen.fill(OFF)
         self._draw_top_headings()
         self._update_leds(message="paused")
-        key_font = self.fonts["key"]
-
-        text = key_font.render("Paused", 1, WHITE)
-        self.screen.blit(text, (400, 250))
-
+        self._write_text("Paused", 400, 250, "key")
         teapot = pygame.image.load("dotty-tea-pot.png")
         self.screen.blit(teapot, (400, 50))
-
         self._do_pause()
 
     def _do_pause(self):
@@ -250,23 +259,30 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
                 self.current_target = choice(self.levels[level])
             self.current_target = choice(self.levels[level])
         else:
-            level = randint(0, 25)
+            level = level % 59
             self.current_target = choice(self.levels[level])
 
     def _setup_text_entry(self):
         """Setup the text entry field."""
+        if SDL == 2:
+            font = pygame.font.Font(None, 19)
+        else:
+            font = pygame.font.Font(None, 30)
+
         self.text_box = Input(
             x=370,
             y=300,
             maxlength=16,
             color=(255, 0, 0),
-            prompt='')
+            prompt='',
+            font=font)
         self.text_box.draw(self.screen)
 
     def _play_sound(self):
         """Play the level change silly noise."""
         level = self.info['level']
-
+        if level > 62:
+            level = level % 62
         filename = "sounds/" + str(level).zfill(2) + ".ogg"
 
         pygame.mixer.music.load(filename)
@@ -317,7 +333,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
     def _draw_top_headings(self):
         """Draw the top headings."""
         # Title
-        self._write_text(TITLE, 150, 15, "small")
+        self._write_text(TITLE, 100, 15, "small")
 
         # Level
         level = 'Level ' + str(self.info['level'])
@@ -355,6 +371,9 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         # Time
         self._write_text('Time:', 370, 185)
 
+        # Your Guess
+        self._write_text('Your input:', 370, 275)
+
     def _draw_text_box(self):
         """Draw the text input box."""
         self.text_box.draw(self.screen)
@@ -379,9 +398,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         output_string = "{0:02}:{1:02}".format(minutes, seconds)
 
         # Blit to the screen
-        font = pygame.font.Font(None, 100)
-        text = font.render(output_string, True, WHITE)
-        self.screen.blit(text, [370, 200])
+        self._write_text(output_string, 370, 200, "key")
         self.frame_count += 1
         self.clock.tick(self.frame_rate)
 
