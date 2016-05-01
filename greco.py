@@ -226,6 +226,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         teapot = pygame.image.load("dotty-tea-pot.png")
         self.screen.blit(teapot, (400, 50))
         self._do_pause()
+        self._update_leds()
 
     def _do_pause(self):
         """Wait for the game to be resumed."""
