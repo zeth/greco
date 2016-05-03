@@ -9,6 +9,7 @@ By Zeth, 2016
 from __future__ import division
 from __future__ import print_function
 
+import os
 import json
 import difflib
 from random import choice
@@ -28,9 +29,13 @@ from pygame.locals import (QUIT, KEYDOWN, K_RETURN, K_PAUSE,
                            K_HELP, K_INSERT, K_ESCAPE)
 
 from ledgrid import LEDGrid, LED
-
-from eztext import Input
 from greencode import GreenCode, WHITE, OFF
+
+try:
+    from eztext import Input
+except ImportError:
+    from .eztext import Input
+
 
 __version__ = "0.1"
 
@@ -62,6 +67,8 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self._setup_game()
         self._setup_ui()
         self.current_target = 'e'
+        directory = os.path.split(__file__)[0]
+        self._teapot_path = os.path.join(directory, "dotty-tea-pot.png")
 
     def run_game(self):
         """The main game loop."""
@@ -84,9 +91,10 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
 
     def _setup_game(self):
         """Load the levels and set the game state."""
-        with open('levels1.json') as level_buf:
+        directory = os.path.split(__file__)[0]
+        with open(os.path.join(directory, 'levels1.json')) as level_buf:
             self.levels = json.load(level_buf)
-        with open('levels2.json') as level_buf:
+        with open(os.path.join(directory, 'levels2.json')) as level_buf:
             self.levels.extend(json.load(level_buf))
         self._setup_info()
 
@@ -225,7 +233,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self._draw_top_headings()
         self._update_leds(message="paused")
         self._write_text("Paused", 400, 250, "key")
-        teapot = pygame.image.load("dotty-tea-pot.png")
+        teapot = pygame.image.load(self._teapot_path)
         self.screen.blit(teapot, (400, 50))
         self._do_pause()
         self._update_leds()

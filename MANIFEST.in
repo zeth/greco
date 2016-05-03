@@ -1,0 +1,6 @@
+include LICENSE
+include README.rst
+include greco/levels1.json
+include greco/levels2.json
+include greco/dotty-tea-pot.png
+include greco/sounds/*.ogg
