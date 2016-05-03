@@ -149,13 +149,13 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
             'Welcome',
             370, 10, "key")
         self._write_text(
-            "Learn green code in a friendly way!",
+            "Learn Green Code in a friendly way!",
             400, 75)
         self._write_text(
             "How To Play",
             370, 95, "medium")
         self._write_text(
-            "Read the green code and type it in.",
+            "Read the Green Code and type it in.",
             370, 135)
         self._write_text(
             "Use the Backspace key to delete typos.",
@@ -179,7 +179,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
             "which is shown by a helpful key on the far right.",
             370, 275)
         self._write_text(
-            "Green code is a whimsical language so start slowly,",
+            "Green Code is a whimsical language so start slowly,",
             370, 310)
         self._write_text(
             "don't take it seriously and don't forget to have fun!",
