@@ -30,7 +30,7 @@ from pygame.locals import (QUIT, KEYDOWN, K_RETURN, K_PAUSE,
 from ledgrid import LEDGrid, LED
 
 from eztext import Input
-from green import GreenCode, WHITE, OFF
+from greencode import GreenCode, WHITE, OFF
 
 STARTING_LEVEL = 0
 
@@ -56,7 +56,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self._current_target = 'e'
         self.key = []
         self.fonts = {}
-        self.gcode = GreenCode(hat=None)
+        self.gcode = GreenCode()
         self._setup_game()
         self._setup_ui()
         self.current_target = 'e'
