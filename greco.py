@@ -32,6 +32,8 @@ from ledgrid import LEDGrid, LED
 from eztext import Input
 from greencode import GreenCode, WHITE, OFF
 
+__version__ = "0.1"
+
 STARTING_LEVEL = 0
 
 PAUSE_BUTTONS = (K_PAUSE, K_HELP, K_INSERT, K_ESCAPE)
