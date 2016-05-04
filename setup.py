@@ -1,9 +1,9 @@
 from __future__ import with_statement
 
 try:
-    from setuptools import setup
+    from setuptools import setup, find_packages
 except ImportError:
-    from distutils.core import setup
+    from distutils.core import setup, find_packages
 
 import greco
 
@@ -34,4 +34,5 @@ setup(name="greco",
           'greencode'
       ],
       scripts=['bin/greco'],
+      include_package_data = True
 )

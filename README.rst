@@ -2,10 +2,10 @@ Greco - Green Code learning game.
 
 Learn Green Code in a friendly way!
 
-    .. image:: https://raw.githubusercontent.com/zeth/greco/master/greco-screenshot.png
-
 Greco is a very basic typing game where a word in Green Code is
 displayed and then you need to type in using your keyboard.
+
+    .. image:: https://raw.githubusercontent.com/zeth/greco/master/greco-screenshot.png
 
 Consistently accurate typing will result in gaining a level and being
 rewarded with a silly catchphrase.

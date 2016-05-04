@@ -37,7 +37,7 @@ except ImportError:
     from .eztext import Input
 
 
-__version__ = "0.1"
+__version__ = "0.1.1"
 
 STARTING_LEVEL = 0
 
@@ -69,6 +69,7 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         self.current_target = 'e'
         directory = os.path.split(__file__)[0]
         self._teapot_path = os.path.join(directory, "dotty-tea-pot.png")
+        self._sound_path = os.path.join(directory, "sounds")
 
     def run_game(self):
         """The main game loop."""
@@ -294,9 +295,9 @@ class Game(object):  # pylint: disable=too-many-instance-attributes
         level = self.info['level']
         if level > 62:
             level = level % 62
-        filename = "sounds/" + str(level).zfill(2) + ".ogg"
+        filename = str(level).zfill(2) + ".ogg"
 
-        pygame.mixer.music.load(filename)
+        pygame.mixer.music.load(os.path.join(self._sound_path, filename))
         pygame.mixer.music.play()
 
     @property
