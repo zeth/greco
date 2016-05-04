@@ -16,4 +16,4 @@ seriously and don't forget to have fun!
 Requires PyGame to be installed (normal PyGame or pygame_sdl2, either
 will work).
 
-To learn more about Green Code, please visit https://pypi.python.org/pypi/ledgrid
+To learn more about Green Code, please visit http://ledui.github.io/
