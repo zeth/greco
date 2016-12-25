@@ -5,8 +5,6 @@ try:
 except ImportError:
     from distutils.core import setup, find_packages
 
-import greco
-
 greco_classifiers = [
     "Programming Language :: Python :: 2.7",
     "Programming Language :: Python :: 3",
@@ -21,7 +19,7 @@ with open("README.rst", "r") as fp:
 
 setup(name="greco",
       description = "a fun typing game for learning the Green Code visual language.",
-      version=greco.__version__,
+      version="0.1.2",
       author="Zeth",
       author_email="theology@gmail.com",
       packages=["greco"],

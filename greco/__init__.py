@@ -37,7 +37,7 @@ except ImportError:
     from .eztext import Input
 
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 STARTING_LEVEL = 0
 
