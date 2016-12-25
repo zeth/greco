@@ -19,7 +19,7 @@ with open("README.rst", "r") as fp:
 
 setup(name="greco",
       description = "a fun typing game for learning the Green Code visual language.",
-      version="0.1.2",
+      version="0.1.3",
       author="Zeth",
       author_email="theology@gmail.com",
       packages=["greco"],
@@ -29,7 +29,8 @@ setup(name="greco",
       url = 'http://ledui.github.io/',
       install_requires=[
           'ledgrid',
-          'greencode'
+          'greencode',
+          'pygame'
       ],
       scripts=['bin/greco'],
       include_package_data = True
